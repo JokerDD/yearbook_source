@@ -1,9 +1,9 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
-import Login from "./pages/Login";
-import AdminDashboard from "./pages/AdminDashboard";
-import StudentDashboard from "./pages/StudentDashboard";
+import Login from "./pages/Login.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
+import StudentDashboard from "./pages/StudentDashboard.jsx";
 import "@/App.css";
 
 function ProtectedRoute({ children, requiredType }) {
