@@ -4,9 +4,9 @@ import axios from "axios";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, BookOpen, Camera, CheckCircle2 } from "lucide-react";
-import ProfileSection from "../components/student/ProfileSection";
-import YearbookSection from "../components/student/YearbookSection";
-import PhotoSection from "../components/student/PhotoSection";
+import ProfileSection from "../components/student/ProfileSection.jsx";
+import YearbookSection from "../components/student/YearbookSection.jsx";
+import PhotoSection from "../components/student/PhotoSection.jsx";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
