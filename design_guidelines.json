@@ -1,0 +1,127 @@
+{
+  "identity": {
+    "name": "Yearbook Management System",
+    "persona": "E1 - The Anti-AI Designer",
+    "tone": "Professional, Minimal, Nostalgic, Trustworthy",
+    "archetype": "Swiss & High-Contrast"
+  },
+  "typography": {
+    "headings": {
+      "family": "Plus Jakarta Sans, sans-serif",
+      "weights": ["500", "600", "700"],
+      "usage": "All section titles, page headers, and modal titles. Use tight tracking (-0.02em)."
+    },
+    "body": {
+      "family": "Inter, sans-serif",
+      "weights": ["400", "500"],
+      "usage": "Data tables, form inputs, long-form text. Use relaxed line-height (1.6)."
+    },
+    "mono": {
+      "family": "JetBrains Mono, monospace",
+      "usage": "IDs, reference numbers, technical data."
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "DEFAULT": "#0F172A",
+        "foreground": "#F8FAFC",
+        "hover": "#1E293B"
+      },
+      "secondary": {
+        "DEFAULT": "#F1F5F9",
+        "foreground": "#0F172A",
+        "hover": "#E2E8F0"
+      },
+      "accent": {
+        "DEFAULT": "#2563EB",
+        "foreground": "#FFFFFF",
+        "hover": "#1D4ED8"
+      },
+      "background": "#FFFFFF",
+      "surface": "#F8FAFC",
+      "border": "#E2E8F0",
+      "muted": "#64748B",
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444"
+    },
+    "gradients": {
+      "subtle": "linear-gradient(to bottom right, #F8FAFC, #FFFFFF)",
+      "glow": "radial-gradient(circle at center, rgba(37, 99, 235, 0.15) 0%, transparent 70%)"
+    }
+  },
+  "layout": {
+    "spacing": {
+      "container_padding": "p-6 md:p-12",
+      "section_gap": "gap-8 md:gap-12",
+      "element_gap": "gap-4"
+    },
+    "grids": {
+      "dashboard": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+      "form": "grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6",
+      "gallery": "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+    },
+    "containers": {
+      "card": "bg-white border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200",
+      "panel": "bg-surface border border-border/50 rounded-2xl p-8"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-6 rounded-lg font-medium transition-transform active:scale-95",
+      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-6 rounded-lg font-medium",
+      "ghost": "hover:bg-accent/10 hover:text-accent h-10 px-4 rounded-lg font-medium"
+    },
+    "inputs": {
+      "default": "h-11 bg-white border-border focus:border-accent focus:ring-2 focus:ring-accent/20 rounded-lg transition-all",
+      "error": "border-error focus:ring-error/20"
+    },
+    "cards": {
+      "stat": "flex flex-col p-6 bg-white border border-border rounded-xl shadow-sm",
+      "profile": "flex flex-col items-center p-8 bg-white border border-border rounded-2xl shadow-sm hover:border-accent/50 transition-colors"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-white/80 border-b border-white/20",
+    "shadows": {
+      "soft": "0 2px 10px rgba(0, 0, 0, 0.03)",
+      "float": "0 10px 30px rgba(0, 0, 0, 0.08)"
+    },
+    "borders": {
+      "subtle": "1px solid #E2E8F0",
+      "active": "1px solid #2563EB"
+    }
+  },
+  "motion": {
+    "transitions": "transition-all duration-200 ease-out",
+    "hover": "hover:-translate-y-1 hover:shadow-lg",
+    "entrance": {
+      "fade_in": "animate-in fade-in duration-500",
+      "slide_up": "animate-in slide-in-from-bottom-4 duration-500"
+    }
+  },
+  "images": {
+    "login_bg": "https://images.unsplash.com/photo-1614620027003-8800eebb10f7?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "student_placeholder": "https://images.unsplash.com/photo-1589872880544-76e896b0592c?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "library_bg": "https://images.unsplash.com/photo-1741699428553-41c8e5bd894d?crop=entropy&cs=srgb&fm=jpg&q=85"
+  },
+  "instructions_to_main_agent": [
+    "Implement the 'Swiss & High-Contrast' theme: White backgrounds, stark black/slate text, and purposeful blue accents.",
+    "Use 'Plus Jakarta Sans' for all headings to give a modern, academic feel. Use 'Inter' for data-heavy tables.",
+    "For the Student Dashboard, use the 'Tetris Grid' layout: A large welcome block, followed by smaller status and action blocks.",
+    "For the Admin Dashboard, use the 'Control Room' layout: Dense data tables with clear hierarchy and filters.",
+    "Ensure all forms use the 'Generous Spacing' rule: p-8 padding inside containers, gap-6 between fields.",
+    "Use Shadcn components for all interactive elements (Dialogs, Dropdowns, Datepickers) but style them to match the 'Swiss' aesthetic (square corners or small radii, minimal shadows).",
+    "Implement the 'Tracing Beam' effect on the Photo Upload dropzone to make it feel active and engaging.",
+    "Ensure the 'Login' page uses the provided architectural background image with a glassmorphism overlay for the form.",
+    "Add 'data-testid' to all interactive elements for testing."
+  ],
+  "universal_guidelines": [
+    "Avoid generic 'Bootstrap' layouts. Use asymmetry and varied column spans.",
+    "Never use pure black (#000000). Use Slate 900 (#0F172A) instead.",
+    "Always add hover states to interactive elements.",
+    "Use 'sonner' for toast notifications.",
+    "Ensure mobile responsiveness for all layouts (stack columns on small screens)."
+  ]
+}
