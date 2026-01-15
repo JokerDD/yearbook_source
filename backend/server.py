@@ -159,6 +159,48 @@ def calculate_profile_completion(user: Dict[str, Any], college: Dict[str, Any]) 
 async def root():
     return {"message": "Yearbook Management API"}
 
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    user_type: str = "student"  # "student" or "admin"
+    college_id: Optional[str] = None
+
+@api_router.post("/auth/register", response_model=Token)
+async def register(register_data: RegisterRequest):
+    # Check if user already exists
+    existing_user = await db.users.find_one({"email": register_data.email}, {"_id": 0})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create new user
+    user = {
+        "id": secrets.token_urlsafe(16),
+        "email": register_data.email,
+        "hashed_password": hash_password(register_data.password),
+        "user_type": register_data.user_type,
+        "college_id": register_data.college_id,
+        "profile": {
+            "full_name": register_data.full_name
+        },
+        "yearbook_answers": {},
+        "photos": [],
+        "profile_completion": 0,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.users.insert_one(user)
+    
+    access_token = create_access_token(data={"sub": user["id"]})
+    user_data = {k: v for k, v in user.items() if k != "hashed_password"}
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_type": user["user_type"],
+        "user_data": user_data
+    }
+
 @api_router.post("/auth/login", response_model=Token)
 async def login(login_data: LoginRequest):
     user = await db.users.find_one({"email": login_data.email}, {"_id": 0})
