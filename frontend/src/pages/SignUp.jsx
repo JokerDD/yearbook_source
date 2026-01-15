@@ -10,20 +10,40 @@ import { GraduationCap } from "lucide-react";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-export default function Login() {
+export default function SignUp() {
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
+    
+    if (!fullName || !email || !password || !confirmPassword) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API}/auth/login`, {
+      const response = await axios.post(`${API}/auth/register`, {
         email,
         password,
+        full_name: fullName,
+        user_type: "student",
       });
 
       const { access_token, user_type, user_data } = response.data;
@@ -32,7 +52,7 @@ export default function Login() {
       localStorage.setItem("userType", user_type);
       localStorage.setItem("userData", JSON.stringify(user_data));
 
-      toast.success("Login successful!");
+      toast.success("Sign up successful!");
 
       if (user_type === "admin") {
         navigate("/admin/dashboard");
@@ -40,7 +60,10 @@ export default function Login() {
         navigate("/dashboard");
       }
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Login failed");
+      console.error("Sign up error:", error);
+      const errorMsg = error.response?.data?.detail || error.message || "Sign up failed";
+      console.error("Error message:", errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -58,12 +81,12 @@ export default function Login() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70" />
         <div className="relative z-10 p-12 flex flex-col justify-center">
           <h1 className="text-5xl font-jakarta font-bold text-white mb-4">
-            Yearbook
+            Join the
             <br />
-            Management
+            Yearbook
           </h1>
           <p className="text-xl text-white/90">
-            Capture memories, celebrate achievements
+            Create your account and start capturing memories
           </p>
         </div>
       </div>
@@ -75,14 +98,28 @@ export default function Login() {
               <GraduationCap className="w-8 h-8 text-accent" />
             </div>
             <h2 className="text-3xl font-jakarta font-bold text-primary mb-2">
-              Welcome Back
+              Create Account
             </h2>
             <p className="text-muted">
-              Sign in to access your yearbook portal
+              Sign up to access your yearbook portal
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6" data-testid="login-form">
+          <form onSubmit={handleSignUp} className="space-y-5" data-testid="signup-form">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                type="text"
+                placeholder="John Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="h-11"
+                data-testid="fullname-input"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
@@ -102,46 +139,49 @@ export default function Login() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="h-11"
                 data-testid="password-input"
               />
+              <p className="text-xs text-muted">At least 6 characters</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="h-11"
+                data-testid="confirm-password-input"
+              />
             </div>
 
             <Button
               type="submit"
-              className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
               disabled={loading}
-              data-testid="login-button"
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-semibold"
+              data-testid="signup-button"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-muted">
-              Don't have an account?{" "}
+              Already have an account?{" "}
               <Link
-                to="/signup"
+                to="/login"
                 className="text-primary font-semibold hover:underline"
               >
-                Sign Up
+                Sign In
               </Link>
-            </p>
-          </div>
-
-          <div className="mt-8 p-4 bg-secondary/50 rounded-lg">
-            <p className="text-sm text-muted text-center">
-              <strong>Demo Credentials:</strong>
-              <br />
-              Email: demo@yearbook.com
-              <br />
-              Password: demo123456
-              <br />
-              (Or create your own account by signing up)
             </p>
           </div>
         </div>
