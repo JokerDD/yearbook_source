@@ -5,6 +5,7 @@ import Login from "./pages/Login.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import StudentDashboard from "./pages/StudentDashboard.jsx";
+import StudentDetail from "./pages/StudentDetail.jsx";
 import "@/App.css";
 
 function ProtectedRoute({ children, requiredType }) {
@@ -34,6 +35,14 @@ function App() {
             element={
               <ProtectedRoute requiredType="admin">
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/students/:studentId"
+            element={
+              <ProtectedRoute requiredType="admin">
+                <StudentDetail />
               </ProtectedRoute>
             }
           />

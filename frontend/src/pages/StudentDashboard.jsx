@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, BookOpen, Camera, CheckCircle2 } from "lucide-react";
+import { LogOut, User, BookOpen, Camera, CheckCircle2, Heart } from "lucide-react";
 import ProfileSection from "../components/student/ProfileSection.jsx";
 import YearbookSection from "../components/student/YearbookSection.jsx";
 import PhotoSection from "../components/student/PhotoSection.jsx";
+import TestimonialSection from "../components/student/TestimonialSection.jsx";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -20,6 +21,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchProfile = async () => {
@@ -150,6 +152,18 @@ export default function StudentDashboard() {
                 <Camera className="w-5 h-5" />
                 <span className="font-medium">Photo Upload</span>
               </button>
+              <button
+                onClick={() => setActiveTab("testimonials")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                  activeTab === "testimonials"
+                    ? "bg-accent/10 text-accent"
+                    : "hover:bg-secondary text-muted"
+                }`}
+                data-testid="testimonials-tab"
+              >
+                <Heart className="w-5 h-5" />
+                <span className="font-medium">Testimonials</span>
+              </button>
             </div>
           </div>
 
@@ -172,6 +186,9 @@ export default function StudentDashboard() {
                   profileData={profileData}
                   onUpdate={fetchProfile}
                 />
+              )}
+              {activeTab === "testimonials" && (
+                <TestimonialSection />
               )}
             </div>
           </div>

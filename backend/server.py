@@ -83,6 +83,16 @@ class PhotoUpload(BaseModel):
     file_id: str
     file_url: str
 
+class Testimonial(BaseModel):
+    from_student_id: str
+    to_student_id: str
+    text: str
+    created_at: Optional[str] = None
+
+class TestimonialCreate(BaseModel):
+    to_student_id: str
+    text: str
+
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
@@ -238,41 +248,100 @@ async def get_colleges(user = Depends(get_current_user)):
     colleges = await db.colleges.find({}, {"_id": 0}).to_list(1000)
     return [College(**c) for c in colleges]
 
+@api_router.post("/students/bulk-upload/debug")
+async def debug_bulk_upload(upload_data: StudentBulkUpload, user = Depends(get_current_user)):
+    """Debug endpoint to see exactly what data is being received"""
+    if user["user_type"] != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can upload students")
+    
+    logger.info(f"DEBUG: Received upload_data: {upload_data}")
+    logger.info(f"DEBUG: Students count: {len(upload_data.students)}")
+    logger.info(f"DEBUG: College ID: {upload_data.college_id}")
+    logger.info(f"DEBUG: Students data: {upload_data.students}")
+    
+    return {
+        "debug_info": {
+            "college_id": upload_data.college_id,
+            "students_count": len(upload_data.students),
+            "students": upload_data.students,
+            "first_student": upload_data.students[0] if upload_data.students else None
+        }
+    }
+
 @api_router.post("/students/bulk-upload")
 async def bulk_upload_students(upload_data: StudentBulkUpload, user = Depends(get_current_user)):
     if user["user_type"] != "admin":
         raise HTTPException(status_code=403, detail="Only admins can upload students")
     
+    logger.info(f"=== BULK UPLOAD START ===")
+    logger.info(f"College ID: {upload_data.college_id}")
+    logger.info(f"Students count: {len(upload_data.students)}")
+    logger.info(f"Students data: {upload_data.students}")
+    
     college = await db.colleges.find_one({"id": upload_data.college_id}, {"_id": 0})
     if not college:
         raise HTTPException(status_code=404, detail="College not found")
     
+    # Validate that we have students to upload
+    if not upload_data.students or len(upload_data.students) == 0:
+        logger.error("ERROR: No students provided for upload")
+        raise HTTPException(status_code=400, detail="No students provided for upload")
+    
     created_students = []
-    for student_data in upload_data.students:
+    skipped_count = 0
+    
+    for idx, student_data in enumerate(upload_data.students):
+        # Validate required fields (name and email are mandatory)
+        name = student_data.get("name", "").strip()
+        email = student_data.get("email", "").strip()
+        phone = student_data.get("phone", "").strip()
+        
+        if not name or not email:
+            logger.warning(f"Skipping student {idx}: missing name or email")
+            skipped_count += 1
+            continue
+            
         password = generate_random_password()
         student = {
             "id": secrets.token_urlsafe(16),
-            "email": student_data["email"],
-            "name": student_data["name"],
+            "email": email,
+            "name": name,
             "hashed_password": hash_password(password),
             "plain_password": password,  # Store temporarily for admin to share
             "user_type": "student",
             "college_id": upload_data.college_id,
-            "profile": {},
+            "profile": {
+                "full_name": name,
+                "phone": phone  # Optional phone field
+            },
             "yearbook_answers": {},
             "photos": [],
             "profile_completion": 0,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         
-        existing = await db.users.find_one({"email": student["email"]})
-        if not existing:
+        existing = await db.users.find_one({"email": email})
+        if existing:
+            logger.warning(f"Student with email {email} already exists, skipping")
+            skipped_count += 1
+            continue
+            
+        try:
             await db.users.insert_one(student)
             created_students.append({
-                "name": student["name"],
-                "email": student["email"],
+                "name": name,
+                "email": email,
                 "password": password
             })
+        except Exception as e:
+            logger.error(f"Failed to insert student {email}: {str(e)}")
+            skipped_count += 1
+    
+    if len(created_students) == 0:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"No students created. {skipped_count} students were skipped due to validation errors or duplicates."
+        )
     
     return {"created_count": len(created_students), "students": created_students}
 
@@ -300,6 +369,97 @@ async def get_students(college_id: Optional[str] = None, user = Depends(get_curr
                 student["profile_completion"] = completion
     
     return students
+
+@api_router.get("/students/{student_id}")
+async def get_student_detail(student_id: str, user = Depends(get_current_user)):
+    """Get detailed information about a specific student (admin only)"""
+    if user["user_type"] != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can view student details")
+    
+    student = await db.users.find_one(
+        {"id": student_id, "user_type": "student"}, 
+        {"_id": 0, "hashed_password": 0}
+    )
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Get college info
+    college = None
+    if student.get("college_id"):
+        college = await db.colleges.find_one({"id": student["college_id"]}, {"_id": 0})
+    
+    return {
+        "student": student,
+        "college": college
+    }
+
+@api_router.put("/students/{student_id}")
+async def update_student(student_id: str, update_data: dict, user = Depends(get_current_user)):
+    """Update student profile (admin only)"""
+    if user["user_type"] != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can update students")
+    
+    student = await db.users.find_one({"id": student_id, "user_type": "student"}, {"_id": 0})
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Only allow updating specific fields to prevent privilege escalation
+    allowed_fields = ["profile", "yearbook_answers"]
+    update_dict = {}
+    
+    for field in allowed_fields:
+        if field in update_data:
+            if field == "profile":
+                # Update nested profile fields
+                for key, value in update_data[field].items():
+                    update_dict[f"profile.{key}"] = value
+            else:
+                update_dict[field] = update_data[field]
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    
+    await db.users.update_one(
+        {"id": student_id},
+        {"$set": update_dict}
+    )
+    
+    # Recalculate profile completion
+    updated_student = await db.users.find_one({"id": student_id}, {"_id": 0})
+    college = await db.colleges.find_one({"id": updated_student["college_id"]}, {"_id": 0})
+    completion = calculate_profile_completion(updated_student, college)
+    
+    await db.users.update_one(
+        {"id": student_id},
+        {"$set": {"profile_completion": completion}}
+    )
+    
+    return {"success": True, "message": "Student updated successfully"}
+
+@api_router.delete("/students/{student_id}")
+async def delete_student(student_id: str, user = Depends(get_current_user)):
+    """Delete a student (admin only)"""
+    if user["user_type"] != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete students")
+    
+    student = await db.users.find_one({"id": student_id, "user_type": "student"}, {"_id": 0})
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Delete all testimonials related to this student (both written and received)
+    await db.testimonials.delete_many({"$or": [
+        {"from_student_id": student_id},
+        {"to_student_id": student_id}
+    ]})
+    
+    # Delete the student
+    result = await db.users.delete_one({"id": student_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=500, detail="Failed to delete student")
+    
+    return {"success": True, "message": "Student deleted successfully"}
 
 @api_router.get("/profile")
 async def get_profile(user = Depends(get_current_user)):
@@ -358,6 +518,167 @@ async def update_yearbook_answers(answers: YearbookAnswers, user = Depends(get_c
     )
     
     return {"success": True, "profile_completion": completion}
+
+@api_router.get("/college/students")
+async def get_college_students(user = Depends(get_current_user)):
+    """Get list of other students from the same college"""
+    if user["user_type"] != "student":
+        raise HTTPException(status_code=403, detail="Only students can view college students")
+    
+    # Get all students from the same college, excluding the current user
+    students = await db.users.find(
+        {
+            "college_id": user["college_id"],
+            "user_type": "student",
+            "id": {"$ne": user["id"]}
+        },
+        {"_id": 0, "hashed_password": 0, "plain_password": 0}
+    ).to_list(1000)
+    
+    return students
+
+@api_router.post("/testimonials")
+async def create_testimonial(testimonial: TestimonialCreate, user = Depends(get_current_user)):
+    """Create a testimonial for another student"""
+    if user["user_type"] != "student":
+        raise HTTPException(status_code=403, detail="Only students can create testimonials")
+    
+    # Validate word count (max 30 words)
+    word_count = len(testimonial.text.strip().split())
+    if word_count > 30:
+        raise HTTPException(status_code=400, detail=f"Testimonial exceeds 30 words limit ({word_count} words)")
+    
+    if word_count < 1:
+        raise HTTPException(status_code=400, detail="Testimonial cannot be empty")
+    
+    # Verify the target student exists and is from the same college
+    target_student = await db.users.find_one(
+        {"id": testimonial.to_student_id, "user_type": "student"}
+    )
+    if not target_student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    if target_student.get("college_id") != user.get("college_id"):
+        raise HTTPException(status_code=403, detail="Can only write testimonials for students in your college")
+    
+    # Check if already wrote a testimonial for this student
+    existing = await db.testimonials.find_one({
+        "from_student_id": user["id"],
+        "to_student_id": testimonial.to_student_id
+    })
+    
+    if existing:
+        # Update existing testimonial
+        await db.testimonials.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {
+                "text": testimonial.text,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        return {"success": True, "message": "Testimonial updated", "word_count": word_count}
+    else:
+        # Create new testimonial
+        testimonial_doc = {
+            "from_student_id": user["id"],
+            "from_student_name": user.get("name", ""),
+            "to_student_id": testimonial.to_student_id,
+            "text": testimonial.text,
+            "word_count": word_count,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.testimonials.insert_one(testimonial_doc)
+        return {"success": True, "message": "Testimonial created", "word_count": word_count}
+
+@api_router.get("/testimonials/received")
+async def get_received_testimonials(user = Depends(get_current_user)):
+    """Get testimonials written for the current student"""
+    if user["user_type"] != "student":
+        raise HTTPException(status_code=403, detail="Only students can view testimonials")
+    
+    testimonials = await db.testimonials.find(
+        {"to_student_id": user["id"]},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    return testimonials
+
+@api_router.get("/testimonials/written")
+async def get_written_testimonials(user = Depends(get_current_user)):
+    """Get testimonials written by the current student"""
+    if user["user_type"] != "student":
+        raise HTTPException(status_code=403, detail="Only students can view testimonials")
+    
+    testimonials = await db.testimonials.find(
+        {"from_student_id": user["id"]},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    return testimonials
+
+@api_router.get("/students/{student_id}/testimonials")
+async def get_student_testimonials(student_id: str, user = Depends(get_current_user)):
+    """Get testimonials for a specific student (admin only)"""
+    if user["user_type"] != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can view student testimonials")
+    
+    testimonials = await db.testimonials.find(
+        {"to_student_id": student_id},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    return testimonials
+
+@api_router.delete("/testimonials/{from_student_id}/{to_student_id}")
+async def delete_testimonial(from_student_id: str, to_student_id: str, user = Depends(get_current_user)):
+    """Delete a testimonial (admin only)"""
+    if user["user_type"] != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete testimonials")
+    
+    result = await db.testimonials.delete_one({
+        "from_student_id": from_student_id,
+        "to_student_id": to_student_id
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Testimonial not found")
+    
+    return {"success": True, "message": "Testimonial deleted"}
+
+@api_router.put("/testimonials/{from_student_id}/{to_student_id}")
+async def update_testimonial(from_student_id: str, to_student_id: str, update_data: dict, user = Depends(get_current_user)):
+    """Update a testimonial (admin only)"""
+    if user["user_type"] != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can update testimonials")
+    
+    # Validate word count if text is being updated
+    if "text" in update_data:
+        new_text = update_data["text"].strip()
+        word_count = len(new_text.split())
+        
+        if word_count > 30:
+            raise HTTPException(status_code=400, detail=f"Testimonial exceeds 30 words limit ({word_count} words)")
+        
+        if word_count < 1:
+            raise HTTPException(status_code=400, detail="Testimonial cannot be empty")
+        
+        update_data["word_count"] = word_count
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.testimonials.update_one(
+        {
+            "from_student_id": from_student_id,
+            "to_student_id": to_student_id
+        },
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Testimonial not found")
+    
+    return {"success": True, "message": "Testimonial updated"}
 
 @api_router.get("/drive/connect")
 async def connect_drive(user = Depends(get_current_user)):
